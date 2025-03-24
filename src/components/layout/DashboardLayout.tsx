@@ -88,10 +88,23 @@ export default function DashboardLayout({
       )
       .subscribe();
 
+    // Listen for profile update events
+    const handleProfileUpdate = (event: CustomEvent) => {
+      if (event.detail.full_name) {
+        setUserName(event.detail.full_name);
+      }
+      if (event.detail.avatarUrl) {
+        setAvatarUrl(event.detail.avatarUrl);
+      }
+    };
+
+    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+
     return () => {
       profileSubscription.unsubscribe();
+      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
     };
-  }, [pathname]); // Re-run when pathname changes
+  }, [pathname]);
 
   // Initialize dark mode
   useEffect(() => {

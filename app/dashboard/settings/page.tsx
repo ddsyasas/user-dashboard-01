@@ -199,6 +199,14 @@ export default function SettingsPage() {
           }
         }
         updates.push('profile');
+
+        // Emit a custom event to notify about profile update
+        const event = new CustomEvent('profileUpdated', { 
+          detail: { 
+            full_name: name 
+          } 
+        });
+        window.dispatchEvent(event);
       }
 
       // Update email if changed
