@@ -31,34 +31,35 @@ export default function SettingsPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // Fetch current user data
-  useEffect(() => {
-    async function fetchUserData() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setCurrentEmail(user.email || '');
-          
-          // Fetch profile data
-          const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('id', user.id);
-          
-          if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            return;
-          }
-
-          if (profiles && profiles.length > 0) {
-            setName(profiles[0].full_name || '');
-            setAvatarUrl(profiles[0].avatar_url);
-          }
+  const fetchUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentEmail(user.email || '');
+        
+        // Fetch profile data
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          return;
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    }
 
+        if (profiles) {
+          setName(profiles.full_name || '');
+          setAvatarUrl(profiles.avatar_url);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchUserData();
   }, []);
 
@@ -117,6 +118,8 @@ export default function SettingsPage() {
           id: user.id,
           avatar_url: publicUrl,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
         });
 
       if (updateError) {
@@ -125,6 +128,13 @@ export default function SettingsPage() {
 
       setAvatarUrl(publicUrl);
       setMessage({ type: 'success', content: 'Profile picture updated successfully!' });
+
+      // Force a refresh of the page
+      router.refresh();
+      
+      // Emit a custom event to notify about profile update
+      const event = new CustomEvent('profileUpdated', { detail: { avatarUrl: publicUrl } });
+      window.dispatchEvent(event);
     } catch (error) {
       console.error('Error uploading avatar:', error);
       setMessage({ type: 'error', content: 'Error uploading profile picture. Please try again.' });

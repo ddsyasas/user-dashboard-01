@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Link, Avatar, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@nextui-org/react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import {
   HomeIcon,
@@ -33,7 +33,65 @@ export default function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Fetch user profile data
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email || '');
+        
+        // Fetch profile data
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          return;
+        }
+
+        if (profiles) {
+          setUserName(profiles.full_name || '');
+          setAvatarUrl(profiles.avatar_url);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  // Set up real-time subscription and initial fetch
+  useEffect(() => {
+    fetchUserProfile();
+
+    // Set up real-time subscription to profile changes
+    const profileSubscription = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => {
+          fetchUserProfile();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      profileSubscription.unsubscribe();
+    };
+  }, [pathname]); // Re-run when pathname changes
 
   // Initialize dark mode
   useEffect(() => {
@@ -87,8 +145,6 @@ export default function DashboardLayout({
     }
   };
 
-  const profilePicture = '/images/profiles/Sajana yasas me.png';
-
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-200">
       {/* Mobile Header */}
@@ -127,13 +183,11 @@ export default function DashboardLayout({
               >
                 <DropdownTrigger>
                   <div className="relative w-8 h-8 cursor-pointer">
-                    <Image
-                      src={profilePicture}
-                      alt="Profile"
-                      fill
-                      className="rounded-full object-cover border-2 border-white dark:border-gray-800 shadow-lg"
-                      sizes="32px"
-                      priority
+                    <Avatar
+                      src={avatarUrl || undefined}
+                      name={userName || userEmail}
+                      size="sm"
+                      className="cursor-pointer"
                     />
                   </div>
                 </DropdownTrigger>
@@ -148,19 +202,14 @@ export default function DashboardLayout({
                     textValue="Profile Header"
                   >
                     <div className="flex items-center gap-x-3">
-                      <div className="relative w-10 h-10 flex-shrink-0">
-                        <Image
-                          src={profilePicture}
-                          alt="Profile"
-                          fill
-                          className="rounded-full object-cover"
-                          sizes="40px"
-                          priority
-                        />
-                      </div>
+                      <Avatar
+                        src={avatarUrl || undefined}
+                        name={userName || userEmail}
+                        size="sm"
+                      />
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Sajana Yasas</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">sajana@example.com</span>
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{userName || 'User'}</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{userEmail}</span>
                       </div>
                     </div>
                   </DropdownItem>
@@ -205,6 +254,9 @@ export default function DashboardLayout({
             onDarkModeToggle={() => {}} 
             isMobile={true}
             setSidebarOpen={setSidebarOpen}
+            avatarUrl={avatarUrl}
+            userName={userName}
+            userEmail={userEmail}
           />
         </div>
       </div>
@@ -218,6 +270,9 @@ export default function DashboardLayout({
           onDarkModeToggle={toggleDarkMode}
           isMobile={false}
           setSidebarOpen={setSidebarOpen}
+          avatarUrl={avatarUrl}
+          userName={userName}
+          userEmail={userEmail}
         />
       </div>
 
@@ -237,7 +292,10 @@ function Sidebar({
   isDarkMode, 
   onDarkModeToggle,
   isMobile,
-  setSidebarOpen
+  setSidebarOpen,
+  avatarUrl,
+  userName,
+  userEmail
 }: { 
   isCollapsed: boolean; 
   onToggle: () => void;
@@ -245,22 +303,27 @@ function Sidebar({
   onDarkModeToggle: () => void;
   isMobile: boolean;
   setSidebarOpen: (open: boolean) => void;
+  avatarUrl: string | null;
+  userName: string;
+  userEmail: string;
 }) {
   const router = useRouter();
+  const [key, setKey] = useState(Date.now());
+
+  useEffect(() => {
+    // Force re-render of Avatar when avatarUrl changes
+    setKey(Date.now());
+  }, [avatarUrl]);
 
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
-      // Redirect to login page
       router.push('/login');
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
-
-  const profilePicture = '/images/profiles/Sajana yasas me.png';
 
   return (
     <div className="flex h-full grow flex-col overflow-y-auto bg-white dark:bg-gray-900 shadow-[4px_0_10px_0_rgba(0,0,0,0.03)] dark:shadow-[4px_0_10px_0_rgba(0,0,0,0.2)] px-6">
@@ -277,20 +340,25 @@ function Sidebar({
             <div className={`flex items-center gap-x-3 cursor-pointer rounded-2xl p-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 ${
               isCollapsed ? 'justify-center w-full' : ''
             }`}>
-              <div className="relative w-12 h-12 flex-shrink-0">
-                <Image
-                  src={profilePicture}
-                  alt="Profile"
-                  fill
-                  className="rounded-full object-cover border-3 border-white dark:border-gray-800 shadow-lg"
-                  sizes="48px"
-                  priority
+              <div className="relative flex-shrink-0">
+                <Avatar
+                  key={key}
+                  src={avatarUrl || undefined}
+                  name={userName || userEmail}
+                  size="lg"
+                  classNames={{
+                    base: "w-12 h-12 border-3 border-white dark:border-gray-800 shadow-lg",
+                    img: "object-cover",
+                    fallback: "text-lg"
+                  }}
+                  radius="full"
+                  showFallback
                 />
               </div>
               {!isCollapsed && (
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Sajana Yasas</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">Admin</p>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{userName || 'User'}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{userEmail}</p>
                 </div>
               )}
             </div>
@@ -306,19 +374,17 @@ function Sidebar({
               textValue="Profile Header"
             >
               <div className="flex items-center gap-x-3">
-                <div className="relative w-10 h-10 flex-shrink-0">
-                  <Image
-                    src={profilePicture}
-                    alt="Profile"
-                    fill
-                    className="rounded-full object-cover"
-                    sizes="40px"
-                    priority
-                  />
-                </div>
+                <Avatar
+                  key={`dropdown-${key}`}
+                  src={avatarUrl || undefined}
+                  name={userName || userEmail}
+                  size="sm"
+                  radius="full"
+                  showFallback
+                />
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Sajana Yasas</span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">sajana@example.com</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{userName || 'User'}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{userEmail}</span>
                 </div>
               </div>
             </DropdownItem>
