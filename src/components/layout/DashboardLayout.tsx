@@ -22,6 +22,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
   { name: 'Team', href: '/dashboard/team', icon: UserGroupIcon },
+  { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
 ];
 
 export default function DashboardLayout({
@@ -168,6 +169,7 @@ export default function DashboardLayout({
                     key="settings"
                     startContent={<CogIcon className="h-5 w-5" />}
                     className="py-3 px-4 text-gray-600 dark:text-gray-400 data-[hover=true]:bg-gray-100 dark:data-[hover=true]:bg-gray-800 data-[hover=true]:text-gray-900 dark:data-[hover=true]:text-gray-100 rounded-xl"
+                    onClick={() => router.push('/dashboard/settings')}
                   >
                     Settings
                   </DropdownItem>
@@ -202,6 +204,7 @@ export default function DashboardLayout({
             isDarkMode={isDarkMode} 
             onDarkModeToggle={() => {}} 
             isMobile={true}
+            setSidebarOpen={setSidebarOpen}
           />
         </div>
       </div>
@@ -214,6 +217,7 @@ export default function DashboardLayout({
           isDarkMode={isDarkMode} 
           onDarkModeToggle={toggleDarkMode}
           isMobile={false}
+          setSidebarOpen={setSidebarOpen}
         />
       </div>
 
@@ -232,13 +236,15 @@ function Sidebar({
   onToggle, 
   isDarkMode, 
   onDarkModeToggle,
-  isMobile
+  isMobile,
+  setSidebarOpen
 }: { 
   isCollapsed: boolean; 
   onToggle: () => void;
   isDarkMode: boolean;
   onDarkModeToggle: () => void;
   isMobile: boolean;
+  setSidebarOpen: (open: boolean) => void;
 }) {
   const router = useRouter();
 
@@ -321,6 +327,10 @@ function Sidebar({
               key="settings"
               startContent={<CogIcon className="h-5 w-5" />}
               className="py-3 px-4 text-gray-600 dark:text-gray-400 data-[hover=true]:bg-gray-100 dark:data-[hover=true]:bg-gray-800 data-[hover=true]:text-gray-900 dark:data-[hover=true]:text-gray-100 rounded-xl"
+              onClick={() => {
+                router.push('/dashboard/settings');
+                setSidebarOpen(false);
+              }}
             >
               Settings
             </DropdownItem>
@@ -341,9 +351,9 @@ function Sidebar({
         <ul role="list" className="flex flex-col gap-y-1">
           {navigation.map((item) => (
             <li key={item.name}>
-              <Link
-                href={item.href}
-                className={`group flex gap-x-3 rounded-xl p-2 text-sm font-semibold leading-6 text-gray-600 dark:text-gray-400 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 active:bg-gray-200 dark:active:bg-gray-700 ${
+              <button
+                onClick={() => router.push(item.href)}
+                className={`group flex gap-x-3 rounded-xl p-2 text-sm font-semibold leading-6 text-gray-600 dark:text-gray-400 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 active:bg-gray-200 dark:active:bg-gray-700 w-full ${
                   isCollapsed ? 'justify-center' : ''
                 }`}
               >
@@ -352,7 +362,7 @@ function Sidebar({
                   aria-hidden="true"
                 />
                 {!isCollapsed && item.name}
-              </Link>
+              </button>
             </li>
           ))}
         </ul>
