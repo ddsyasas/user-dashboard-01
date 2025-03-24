@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Link, Avatar, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@nextui-org/react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import {
   HomeIcon,
   ChartBarIcon,
@@ -114,9 +116,18 @@ function Sidebar({
   isDarkMode: boolean;
   onDarkModeToggle: () => void;
 }) {
-  const handleLogout = () => {
-    // Add logout logic here
-    console.log('Logging out...');
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Redirect to login page
+      router.push('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   const profilePicture = '/images/profiles/Sajana yasas me.png';
